@@ -11,6 +11,7 @@ Project Notes ******************************************************************
   Version 2.0  - 24/06/2024 - Some improvements after Rob has helped me. It's very smooth now. 
   Version 3.0  - 25/06/2024 - Rob continues to be a godsend
   Version 4.0  - 25/06/2024 - Added in some sensible debug functions
+  Version 5.0  - 26/06/2024 - Added in modes for displaying Voltage and Power
  
  
 Hardware Pinouts **************************************************************************************************
@@ -51,7 +52,7 @@ Meter Range Settings ***********************************************************
 #include <TM1637TinyDisplay6.h>
 
 double minimumValue = 0;           // set what range the meter starts at 
-double maximumValue = 4;          // set what range the meter ends at 
+double maximumValue = 15;          // set what range the meter ends at 
 double numberOfLEDs = 53;          // there are 53 LEDs
  
 double workingRange = maximumValue - minimumValue;
@@ -111,6 +112,16 @@ double actualvalcalc = 0;
 #define LED51 9
 #define LED52 10
 #define LED53 11
+
+
+//************************************************************************************
+// set up the defines for mode select pins
+
+#define MODE1 A0
+#define MODE2 A1
+#define MODE3 A2
+#define MODE4 A3
+
  
 //************************************************************************************
 // TM1637 driver IC setup for BAR
@@ -141,12 +152,30 @@ bool dir = true;  // Flag to determine the direction of the loop
 void setup(void) 
 {
  
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Start Serial 
   Serial.begin(115200);
  
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Print Banner on Serial 
+
+  Serial.println(" ");
+  Serial.println(" ");
+  Serial.println("----- Project 1101  -  S/W Version 5.0- -----------------------------");
+  Serial.println("----- 53Meter Combined Current/Voltage/Power Meter ------------------");
+  Serial.println(" ");
+  Serial.println("System Startup");
+  Serial.println(" ");  
+
+
+
+
+
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // "begin" the "displays" 
  
   displayBAR.begin();
-
-
   displayDISP.begin();
 
   
@@ -156,7 +185,7 @@ void setup(void)
    // Wait until serial port is opened
   while (!Serial) { delay(10); }
  
-  Serial.println("Adafruit INA260 Test");
+  Serial.println("Check for INA260 presence;");
  
   if (!ina260.begin()) {
     Serial.println("Couldn't find INA260 chip");
@@ -176,7 +205,23 @@ digitalWrite(LED52, HIGH);
   pinMode(LED53, OUTPUT);
 digitalWrite(LED53, HIGH);
 
-Serial.println("And into the loop");
+
+//************************************************************************************
+// Set up the inputs for the mode pins
+
+pinMode(MODE1, INPUT_PULLUP);
+pinMode(MODE2, INPUT_PULLUP);
+pinMode(MODE3, INPUT_PULLUP);
+pinMode(MODE4, INPUT_PULLUP);
+
+
+
+//************************************************************************************
+// Last thing we do before we get into void loop()
+Serial.println("Startup Complete");
+Serial.println(" ");
+Serial.println(" ");
+Serial.println(" ");
 
 }
 
@@ -189,12 +234,33 @@ void loop(void)
  
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Read current from sensor and populate values with it 
+  
   float current_mA = 0;
   float current_A = 0;
- 
+
+  
+  if(digitalRead(MODE1)==LOW)
+  {
+  //Serial.println("MODE1");
+  current_mA = ina260.readBusVoltage();
+  current_A = (abs(current_mA/1000));
+  }
+
+
+  else if(digitalRead(MODE2)==LOW)
+  {
+  //Serial.println("MODE2");
+  current_mA = ina260.readPower();
+  current_A = (abs(current_mA/1000));
+  }
+
+  
+  else
+  {
+  //Serial.println("Current mode");
   current_mA = ina260.readCurrent();
   current_A = (abs(current_mA/1000));
-  //current_A =12.34;
+  }
   
 
 
@@ -217,20 +283,20 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
   {
     serialDebugRefresh = 0;           // reset the timer
 
-    Serial.print("Serial Output");
-    Serial.print(" -- ");
+    //Serial.print("Serial Output");
+    //Serial.print(" -- ");
 
-    Serial.print("Meter Timestamp ");
-    Serial.print(generalTimer/100);
+    Serial.print("Timestamp ");
+    Serial.print(1000000 + (generalTimer/100));
     Serial.print(" -- ");
     
     Serial.print("Current: ");
-    Serial.print(current_A);
+    Serial.print((abs(ina260.readCurrent()/1000)),3);
     Serial.print("A");
     Serial.print(" -- ");
 
     Serial.print("Voltage: ");
-    Serial.print(ina260.readBusVoltage()/1000);
+    Serial.print((ina260.readBusVoltage()/1000),3);
     Serial.print("V");
     Serial.print(" -- ");
 
