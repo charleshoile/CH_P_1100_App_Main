@@ -56,7 +56,7 @@ double threshold = workingRange / numberOfLEDs;
 #include <Arduino.h>
 //#include <TM1637TinydisplayBAR.h>
 #include <elapsedMillis.h>
-#include <TM1637TinydisplayBAR6.h>
+#include <TM1637TinyDisplay6.h>
  
 // Set up the timer for the animations. 
 elapsedMillis animateTimer = 0;
@@ -68,10 +68,14 @@ elapsedMillis checkCurrent = 0;
 Adafruit_INA260 ina260 = Adafruit_INA260();
  
 // Setup for TM1637 
-#define CLK 7
-#define DIO 8
+#define CLK_DISP 3
+#define DIO_DISP 4
 #define TEST_DELAY   1000
  
+
+#define CLK_BAR 7
+#define DIO_BAR 8
+
  
  
 // LED Definitions 
@@ -112,7 +116,10 @@ double actualvalcalc = 0;
 // TM1637 driver IC setup for BAR
  
  
-TM1637TinydisplayBAR6 displayBAR(CLK, DIO);
+TM1637TinyDisplay6 displayBAR(CLK_BAR, DIO_BAR);
+
+TM1637TinyDisplay6 displayDISP(CLK_DISP, DIO_DISP);
+
  
 // Segment bits
 #define SEG_A 0b00000001
@@ -138,6 +145,12 @@ void setup(void)
  
  
   displayBAR.begin();
+
+
+  displayDISP.begin();
+
+  
+
   //testpattern();
  
    // Wait until serial port is opened
@@ -187,11 +200,18 @@ void loop(void)
  
   current_mA = ina260.readCurrent();
   current_A = (abs(current_mA/1000));
+  //current_A =0;
   
   //delay(1000);
   //displayBAR.showNumber(current_A, 2);
 
  
+
+  displayDISP.showNumber(current_A);
+  Serial.println(current_A);
+
+
+
   //Serial.println(current_A);
 
   // Decide the direction of the loop based on current reading
@@ -239,7 +259,7 @@ dir=1;
         
       }
 
-Serial.println(f);
+//Serial.println(f);
 
       uint8_t bit_num = f - 3; // LED 3 has bit number 0, LED 50 has bit number 47
       uint8_t segment = 1 << (bit_num %8); // segment bits are in order 0..7 for all bit numbers. Well planned.
