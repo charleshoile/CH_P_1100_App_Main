@@ -9,6 +9,7 @@ Project Notes ******************************************************************
  
   Version 1.0  - 19/06/2024 - Initial Release
   Version 2.0  - 24/06/2024 - Some improvements after Rob has helped me. It's very smooth now. 
+  Version 3.0  - 25/06/2024 - Rob continues to be a godsend
  
  
 Hardware Pinouts **************************************************************************************************
@@ -40,28 +41,25 @@ Meter Range Settings ***********************************************************
  
 */
  
+// Include required libraries
+#include <Wire.h>
+#include <Adafruit_INA260.h>
+#include <Arduino.h>
+#include <TM1637TinyDisplay.h>
+#include <elapsedMillis.h>
+#include <TM1637TinyDisplay6.h>
+
 double minimumValue = 0;           // set what range the meter starts at 
-double maximumValue = 3;          // set what range the meter ends at 
+double maximumValue = 4;          // set what range the meter ends at 
 double numberOfLEDs = 53;          // there are 53 LEDs
  
 double workingRange = maximumValue - minimumValue;
 double threshold = workingRange / numberOfLEDs;
  
- 
- 
- 
-// Include required libraries
-#include <Wire.h>
-#include <Adafruit_INA260.h>
-#include <Arduino.h>
-//#include <TM1637TinydisplayBAR.h>
-#include <elapsedMillis.h>
-#include <TM1637TinyDisplay6.h>
- 
 // Set up the timer for the animations. 
 elapsedMillis animateTimer = 0;
  
-elapsedMillis checkCurrent = 0;
+elapsedMillis refreshDisplay = 0;
 
 
 // Definitions
@@ -118,7 +116,7 @@ double actualvalcalc = 0;
  
 TM1637TinyDisplay6 displayBAR(CLK_BAR, DIO_BAR);
 
-TM1637TinyDisplay6 displayDISP(CLK_DISP, DIO_DISP);
+TM1637TinyDisplay displayDISP(CLK_DISP, DIO_DISP); // 4 digit
 
  
 // Segment bits
@@ -189,35 +187,37 @@ void loop(void)
  
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Read current from sensor and populate values with it 
- 
-
   float current_mA = 0;
   float current_A = 0;
-
-
-
-
  
   current_mA = ina260.readCurrent();
   current_A = (abs(current_mA/1000));
-  //current_A =0;
+  //current_A =12.34;
   
-  //delay(1000);
-  //displayBAR.showNumber(current_A, 2);
 
- 
 
+
+
+  if (refreshDisplay >= 100)
+  {
+
+refreshDisplay = 0;
   displayDISP.showNumber(current_A);
+
+  }
+
+ //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Do some serial bits.  
+  
   Serial.println(current_A);
 
 
 
-  //Serial.println(current_A);
 
   // Decide the direction of the loop based on current reading
   dir = (current_A >= previous_current_A);
   previous_current_A = current_A;  // Update the previous current reading
-dir=1;
+//dir=1; //force loop up
 
  //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Decide if LEDs should be on or not.  
@@ -258,17 +258,16 @@ dir=1;
         digit = 3;
         
       }
-
-//Serial.println(f);
-
       uint8_t bit_num = f - 3; // LED 3 has bit number 0, LED 50 has bit number 47
       uint8_t segment = 1 << (bit_num %8); // segment bits are in order 0..7 for all bit numbers. Well planned.
       
       if (current_A > ledThreshold) {
         customSegments[digit] |= segment;
       }
-      if (f == 50) {
-        // write the TM1637 LEDs before the last 3
+      if (((f == 50) && dir) 
+        ||((f == 3) && !dir)) {
+        // going up: write the TM1637 LEDs before the last 3
+        // going down: write the TM1637 LEDs before the first 2
         displayBAR.setSegments(customSegments);
       }
     }
