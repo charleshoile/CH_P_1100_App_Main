@@ -10,6 +10,7 @@ Project Notes ******************************************************************
   Version 1.0  - 19/06/2024 - Initial Release
   Version 2.0  - 24/06/2024 - Some improvements after Rob has helped me. It's very smooth now. 
   Version 3.0  - 25/06/2024 - Rob continues to be a godsend
+  Version 4.0  - 25/06/2024 - Added in some sensible debug functions
  
  
 Hardware Pinouts **************************************************************************************************
@@ -58,8 +59,9 @@ double threshold = workingRange / numberOfLEDs;
  
 // Set up the timer for the animations. 
 elapsedMillis animateTimer = 0;
- 
 elapsedMillis refreshDisplay = 0;
+elapsedMillis serialDebugRefresh = 0;
+elapsedMillis generalTimer = 0;
 
 
 // Definitions
@@ -208,8 +210,43 @@ refreshDisplay = 0;
 
  //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Do some serial bits.  
+    
+    
+if (serialDebugRefresh >= 250)        // So that is to say, is it time to print details on serial debug?
   
-  Serial.println(current_A);
+  {
+    serialDebugRefresh = 0;           // reset the timer
+
+    Serial.print("Serial Output");
+    Serial.print(" -- ");
+
+    Serial.print("Meter Timestamp ");
+    Serial.print(generalTimer/100);
+    Serial.print(" -- ");
+    
+    Serial.print("Current: ");
+    Serial.print(current_A);
+    Serial.print("A");
+    Serial.print(" -- ");
+
+    Serial.print("Voltage: ");
+    Serial.print(ina260.readBusVoltage()/1000);
+    Serial.print("V");
+    Serial.print(" -- ");
+
+    Serial.print("Power: ");
+    Serial.print(ina260.readPower()/1000);
+    Serial.print("W");
+    
+
+    Serial.println("");
+
+  }
+
+
+
+
+  
 
 
 
