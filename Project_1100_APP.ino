@@ -7,11 +7,12 @@ With some help from Rob Williams
  
 Project Notes **************************************************************************************************
  
-  Version 1.0  - 19/06/2024 - Initial Release
+  Version 1.0  - 19/06/2024 - Initial Release.
   Version 2.0  - 24/06/2024 - Some improvements after Rob has helped me. It's very smooth now. 
-  Version 3.0  - 25/06/2024 - Rob continues to be a godsend
-  Version 4.0  - 25/06/2024 - Added in some sensible debug functions
-  Version 5.0  - 26/06/2024 - Added in modes for displaying Voltage and Power
+  Version 3.0  - 25/06/2024 - Rob continues to be a godsend.
+  Version 4.0  - 25/06/2024 - Added in some sensible debug functions.
+  Version 5.0  - 26/06/2024 - Added in modes for displaying Voltage and Power.
+  Version 6.0  - 29/06/2024 - Adding in more mature methods of doing the above. 
  
  
 Hardware Pinouts **************************************************************************************************
@@ -28,17 +29,30 @@ Hardware Pinouts ***************************************************************
   D9    - PB1   - LED 51 on the bar graph
   D10   - PB2   - LED 52 on the bar graph
   D11   - PB3   - LED 53 on the bar graph
-  D12   - PB4   - n/c
+  D12   - PB4   - SW4 Config Header
   D13   - PB5   - n/c
    =======================Analogues
-  A0    - PC0   - SW1 Config Header
-  A1    - PC1   - SW2 Config Header
-  A2    - PC2   - SW3 Config Header
-  A3    - PC3   - SW4 Config Header
+  A0    - PC0   - SW0 Config Header
+  A1    - PC1   - SW1 Config Header
+  A2    - PC2   - SW2 Config Header
+  A3    - PC3   - SW3 Config Header
   A4    - PC4   - I2C
   A5    - PC5   - I2C
  
+SW Config Header Pins Usage **************************************************************************************************
+
+Putting a header on any of these switches will "configure" the meter do display a certain thing. 
+
+None    - Current Mode    (Will display current)
+SW0     - Voltage Mode    (Will display Voltage)
+SW1     - Power Mode      (Will display Power)
+SW2     - Scale           (Will change the bar display from 0-15 max to 0-50 max)
+SW3     - Animation       (Will enable animations on the meter)
+SW4     - Spare           Spare
+
  
+
+
 Meter Range Settings **************************************************************************************************
  
 */
@@ -51,8 +65,16 @@ Meter Range Settings ***********************************************************
 #include <elapsedMillis.h>
 #include <TM1637TinyDisplay6.h>
 
+
+//************************************************************************************
+// set up the min and max range of the meter
+
+
+
 double minimumValue = 0;           // set what range the meter starts at 
 double maximumValue = 15;          // set what range the meter ends at 
+
+
 double numberOfLEDs = 53;          // there are 53 LEDs
  
 double workingRange = maximumValue - minimumValue;
@@ -78,8 +100,8 @@ Adafruit_INA260 ina260 = Adafruit_INA260();
 #define DIO_BAR 8
 
  
- 
-// LED Definitions 
+//************************************************************************************
+// LED Definitions
 #define LED1  0
 #define LED2  1
 #define LED3  2
@@ -117,10 +139,11 @@ double actualvalcalc = 0;
 //************************************************************************************
 // set up the defines for mode select pins
 
-#define MODE1 A0
-#define MODE2 A1
-#define MODE3 A2
-#define MODE4 A3
+#define SW0 A0
+#define SW1 A1
+#define SW2 A2
+#define SW3 A3
+#define SW4 12
 
  
 //************************************************************************************
@@ -168,10 +191,6 @@ void setup(void)
   Serial.println(" ");  
 
 
-
-
-
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // "begin" the "displays" 
  
@@ -183,45 +202,76 @@ void setup(void)
   //testpattern();
  
    // Wait until serial port is opened
-  while (!Serial) { delay(10); }
+  while (!Serial) 
+  { 
+    delay(10); 
+  }
  
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Get the INA260 sensor up and running. 
+
   Serial.println("Check for INA260 presence;");
  
-  if (!ina260.begin()) {
+  if (!ina260.begin()) 
+  {
     Serial.println("Couldn't find INA260 chip");
     while (1);
   }
   Serial.println("Found INA260 chip");
  
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Set up the LEDs. 
+
  
   pinMode(LED01, OUTPUT);
-digitalWrite(LED01, HIGH);
+  digitalWrite(LED01, HIGH);
   pinMode(LED02, OUTPUT);
-digitalWrite(LED02, HIGH);
+  digitalWrite(LED02, HIGH);
   pinMode(LED51, OUTPUT);
-digitalWrite(LED51, HIGH);
+  digitalWrite(LED51, HIGH);
   pinMode(LED52, OUTPUT);
-digitalWrite(LED52, HIGH);
+  digitalWrite(LED52, HIGH);
   pinMode(LED53, OUTPUT);
-digitalWrite(LED53, HIGH);
+  digitalWrite(LED53, HIGH);
 
 
 //************************************************************************************
 // Set up the inputs for the mode pins
 
-pinMode(MODE1, INPUT_PULLUP);
-pinMode(MODE2, INPUT_PULLUP);
-pinMode(MODE3, INPUT_PULLUP);
-pinMode(MODE4, INPUT_PULLUP);
+  pinMode(SW0, INPUT_PULLUP);
+  pinMode(SW1, INPUT_PULLUP);
+  pinMode(SW2, INPUT_PULLUP);
+  pinMode(SW3, INPUT_PULLUP);
+  pinMode(SW4, INPUT_PULLUP);
+
 
 
 
 //************************************************************************************
+// Setup the scale
+
+
+  if(digitalRead(SW2)==LOW)         // so if this is LOW, then we want to modify the scale 
+  {
+    Serial.println("Extended Scale Selected (0-50)");
+    minimumValue = 0;           
+    maximumValue = 50;
+    workingRange = maximumValue - minimumValue;
+    threshold = workingRange / numberOfLEDs;
+    // all this stuff is already defined above in lines 70ish, but easier to re-define here. 
+  }
+  else
+  {
+    Serial.println("Normal Scale Selected (0-15)");
+  }
+
+//************************************************************************************
 // Last thing we do before we get into void loop()
-Serial.println("Startup Complete");
-Serial.println(" ");
-Serial.println(" ");
-Serial.println(" ");
+  Serial.println("Startup Complete");
+  Serial.println(" ");
+  Serial.println(" ");
+  Serial.println(" ");
 
 }
 
@@ -239,39 +289,31 @@ void loop(void)
   float current_A = 0;
 
   
-  if(digitalRead(MODE1)==LOW)
+  if(digitalRead(SW0)==LOW)
   {
-  //Serial.println("MODE1");
-  current_mA = ina260.readBusVoltage();
-  current_A = (abs(current_mA/1000));
+    current_mA = ina260.readBusVoltage();
+    current_A = (abs(current_mA/1000));
   }
 
 
-  else if(digitalRead(MODE2)==LOW)
+  else if(digitalRead(SW1)==LOW)
   {
-  //Serial.println("MODE2");
-  current_mA = ina260.readPower();
-  current_A = (abs(current_mA/1000));
+    current_mA = ina260.readPower();
+    current_A = (abs(current_mA/1000));
   }
 
   
   else
   {
-  //Serial.println("Current mode");
-  current_mA = ina260.readCurrent();
-  current_A = (abs(current_mA/1000));
+    //Serial.println("Current mode");
+    current_mA = ina260.readCurrent();
+    current_A = (abs(current_mA/1000));
   }
   
-
-
-
-
   if (refreshDisplay >= 100)
   {
-
-refreshDisplay = 0;
-  displayDISP.showNumber(current_A);
-
+    refreshDisplay = 0;
+    displayDISP.showNumber(current_A);
   }
 
  //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -279,7 +321,6 @@ refreshDisplay = 0;
     
     
 if (serialDebugRefresh >= 250)        // So that is to say, is it time to print details on serial debug?
-  
   {
     serialDebugRefresh = 0;           // reset the timer
 
@@ -308,13 +349,6 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
     Serial.println("");
 
   }
-
-
-
-
-  
-
-
 
 
   // Decide the direction of the loop based on current reading
