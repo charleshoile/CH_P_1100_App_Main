@@ -2,8 +2,8 @@
  
 Project 1100/1101
 Sketch to measure current. 
-Charles Hoile
-With some help from Rob Williams
+Charles Hoile.
+With some help from Rob Williams.
  
 Project Notes **************************************************************************************************
  
@@ -12,7 +12,8 @@ Project Notes ******************************************************************
   Version 3.0  - 25/06/2024 - Rob continues to be a godsend.
   Version 4.0  - 25/06/2024 - Added in some sensible debug functions.
   Version 5.0  - 26/06/2024 - Added in modes for displaying Voltage and Power.
-  Version 6.0  - 29/06/2024 - Adding in more mature methods of doing the above. 
+  Version 6.0  - 29/06/2024 - Adding in more mature methods of doing the above.
+  Version 7.0  - 29/06/2024 - Cleaning up some messy code. 
  
  
 Hardware Pinouts **************************************************************************************************
@@ -69,14 +70,9 @@ Meter Range Settings ***********************************************************
 //************************************************************************************
 // set up the min and max range of the meter
 
-
-
 double minimumValue = 0;           // set what range the meter starts at 
 double maximumValue = 15;          // set what range the meter ends at 
-
-
-double numberOfLEDs = 53;          // there are 53 LEDs
- 
+double numberOfLEDs = 53;          // there are 53 LEDs (it's unlikely this will change)
 double workingRange = maximumValue - minimumValue;
 double threshold = workingRange / numberOfLEDs;
  
@@ -90,12 +86,11 @@ elapsedMillis generalTimer = 0;
 // Definitions
 Adafruit_INA260 ina260 = Adafruit_INA260();
  
-// Setup for TM1637 
+// Setup for TM1637 for the Display
 #define CLK_DISP 3
 #define DIO_DISP 4
-#define TEST_DELAY   1000
  
-
+// Setup for TM1637 for the Bar Graph
 #define CLK_BAR 7
 #define DIO_BAR 8
 
@@ -119,14 +114,12 @@ Adafruit_INA260 ina260 = Adafruit_INA260();
 #define LED15 A2
 #define LED16 A3
  
- 
 int analogPin = A0;                     
 double val = 0;  
 double valcalc = 0;
 double actualvalcalc = 0;
  
- 
- 
+
 //************************************************************************************
 // set up the defines for the PWM pins
 #define LED01 6
@@ -147,11 +140,10 @@ double actualvalcalc = 0;
 
  
 //************************************************************************************
-// TM1637 driver IC setup for BAR
+// TM1637 driver IC setup for Display and Bar Graph LEDs
  
  
 TM1637TinyDisplay6 displayBAR(CLK_BAR, DIO_BAR);
-
 TM1637TinyDisplay displayDISP(CLK_DISP, DIO_DISP); // 4 digit
 
  
@@ -169,7 +161,7 @@ TM1637TinyDisplay displayDISP(CLK_DISP, DIO_DISP); // 4 digit
 uint8_t customSegments[6] = {0, 0, 0, 0, 0, 0};
  
  
-float previous_current_A = 0;  // Variable to store the previous current reading
+float previous_valueToDisplay = 0;  // Variable to store the previous current reading
 bool dir = true;  // Flag to determine the direction of the loop
 
 void setup(void) 
@@ -184,7 +176,7 @@ void setup(void)
 
   Serial.println(" ");
   Serial.println(" ");
-  Serial.println("----- Project 1101  -  S/W Version 5.0- -----------------------------");
+  Serial.println("----- Project 1101  -  S/W Version 7.0 ------------------------------");
   Serial.println("----- 53Meter Combined Current/Voltage/Power Meter ------------------");
   Serial.println(" ");
   Serial.println("System Startup");
@@ -246,8 +238,6 @@ void setup(void)
   pinMode(SW4, INPUT_PULLUP);
 
 
-
-
 //************************************************************************************
 // Setup the scale
 
@@ -287,34 +277,49 @@ void loop(void)
   
   float current_mA = 0;
   float current_A = 0;
+  float valueToDisplay = 0;
 
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Decide how to setup and show the meter
   
   if(digitalRead(SW0)==LOW)
   {
-    current_mA = ina260.readBusVoltage();
-    current_A = (abs(current_mA/1000));
+    // If the IF is true, then we display Voltage on the meter
+    float voltage_mA;                           // define the float
+    voltage_mA = ina260.readBusVoltage();       // read mV from the INA
+    voltage_mA = abs(voltage_mA);               // Absolute it
+    valueToDisplay = voltage_mA/1000;           // make it V not mV
   }
-
 
   else if(digitalRead(SW1)==LOW)
   {
-    current_mA = ina260.readPower();
-    current_A = (abs(current_mA/1000));
+    // If the IF is true, then we display Power on the meter
+    float power_mW;                             // define the float
+    power_mW = ina260.readPower();              // read mW from the INA
+    power_mW = abs(power_mW);                   // Absolute it
+    valueToDisplay = power_mW/1000;             // make it W not mW
   }
 
-  
   else
   {
-    //Serial.println("Current mode");
-    current_mA = ina260.readCurrent();
-    current_A = (abs(current_mA/1000));
+    // Feeling like just viewing current today?
+    float current_mA;                           // define the float
+    current_mA = ina260.readCurrent();          // read mA from the INA
+    current_mA = abs(current_mA);               // Absolute it
+    valueToDisplay = current_mA/1000;           // make it A not mA
   }
   
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Refresh rate of the Display (Set to 100ms)
+
   if (refreshDisplay >= 100)
   {
     refreshDisplay = 0;
-    displayDISP.showNumber(current_A);
+    displayDISP.showNumber(valueToDisplay);
   }
+
 
  //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Do some serial bits.  
@@ -352,8 +357,8 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
 
 
   // Decide the direction of the loop based on current reading
-  dir = (current_A >= previous_current_A);
-  previous_current_A = current_A;  // Update the previous current reading
+  dir = (valueToDisplay >= previous_valueToDisplay);
+  previous_valueToDisplay = valueToDisplay;  // Update the previous current reading
 //dir=1; //force loop up
 
  //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -369,10 +374,10 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
 
     // first two LEDs are DIO not TM1637
     if (f == 1) {
-      analogWrite(LED01, (current_A > ledThreshold)? 250 : 255);
+      analogWrite(LED01, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 2) {
-      analogWrite(LED02, (current_A > ledThreshold)? 250 : 255);
+      analogWrite(LED02, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f < 51) {
       uint8_t digit;
@@ -398,7 +403,7 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
       uint8_t bit_num = f - 3; // LED 3 has bit number 0, LED 50 has bit number 47
       uint8_t segment = 1 << (bit_num %8); // segment bits are in order 0..7 for all bit numbers. Well planned.
       
-      if (current_A > ledThreshold) {
+      if (valueToDisplay > ledThreshold) {
         customSegments[digit] |= segment;
       }
       if (((f == 50) && dir) 
@@ -409,13 +414,13 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
       }
     }
     else if (f == 51) {
-      analogWrite(LED51, (current_A > ledThreshold)? 250 : 255);
+      analogWrite(LED51, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 52) {
-      analogWrite(LED52, (current_A > ledThreshold)? 250 : 255);
+      analogWrite(LED52, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 53) {
-      analogWrite(LED53, (current_A > ledThreshold)? 250 : 255);
+      analogWrite(LED53, (valueToDisplay > ledThreshold)? 250 : 255);
     }
   }
 
