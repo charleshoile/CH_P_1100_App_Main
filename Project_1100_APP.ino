@@ -414,10 +414,10 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
       }
     }
     else if (f == 51) {
-      analogWrite(LED51, (valueToDisplay > ledThreshold)? 250 : 255);
+      analogWrite(LED52, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 52) {
-      analogWrite(LED52, (valueToDisplay > ledThreshold)? 250 : 255);
+      analogWrite(LED51, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 53) {
       analogWrite(LED53, (valueToDisplay > ledThreshold)? 250 : 255);
