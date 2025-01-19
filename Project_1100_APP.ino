@@ -14,6 +14,7 @@ Project Notes ******************************************************************
   Version 5.0  - 26/06/2024 - Added in modes for displaying Voltage and Power.
   Version 6.0  - 29/06/2024 - Adding in more mature methods of doing the above.
   Version 7.0  - 29/06/2024 - Cleaning up some messy code. 
+  Version 8.0  - 19/01/2025 - Asked ChatGPT to add in a startup animation. 
  
  
 Hardware Pinouts **************************************************************************************************
@@ -166,18 +167,17 @@ bool dir = true;  // Flag to determine the direction of the loop
 
 void setup(void) 
 {
- 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Start Serial 
   Serial.begin(115200);
- 
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Print Banner on Serial 
 
   Serial.println(" ");
   Serial.println(" ");
-  Serial.println("----- Project 1101  -  S/W Version 7.0 ------------------------------");
-  Serial.println("----- 53Meter Combined Current/Voltage/Power Meter ------------------");
+  Serial.println("----- Project 1101  -  S/W Version 8.0 ------------------------------");
+  Serial.println("----- UberMeter Current/Voltage/Power Meter ------------------");
   Serial.println(" ");
   Serial.println("System Startup");
   Serial.println(" ");  
@@ -189,11 +189,7 @@ void setup(void)
   displayBAR.begin();
   displayDISP.begin();
 
-  
-
-  //testpattern();
- 
-   // Wait until serial port is opened
+  // Wait until serial port is opened
   while (!Serial) 
   { 
     delay(10); 
@@ -215,7 +211,6 @@ void setup(void)
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Set up the LEDs. 
 
- 
   pinMode(LED01, OUTPUT);
   digitalWrite(LED01, HIGH);
   pinMode(LED02, OUTPUT);
@@ -263,6 +258,49 @@ void setup(void)
   Serial.println(" ");
   Serial.println(" ");
 
+
+// Start up animation
+
+//CHATGPT: Sweep animation for LED bar graph
+  for (int i = 1; i <= numberOfLEDs; i++) {
+    if (i == 1) {
+      digitalWrite(LED01, LOW);
+    } else if (i == 2) {
+      digitalWrite(LED02, LOW);
+    } else if (i < 51) {
+      uint8_t digit = (i < 11) ? 2 : (i < 19) ? 1 : (i < 27) ? 0 : (i < 35) ? 5 : (i < 43) ? 4 : 3;
+      uint8_t segment = 1 << ((i - 3) % 8);
+      customSegments[digit] |= segment;
+      displayBAR.setSegments(customSegments);
+    } else if (i == 51) {
+      digitalWrite(LED51, LOW);
+    } else if (i == 52) {
+      digitalWrite(LED52, LOW);
+    } else if (i == 53) {
+      digitalWrite(LED53, LOW);
+    }
+    delay(5); // Adjust the delay for animation speed
+  }
+
+  for (int i = numberOfLEDs; i >= 1; i--) {
+    if (i == 1) {
+      digitalWrite(LED01, HIGH);
+    } else if (i == 2) {
+      digitalWrite(LED02, HIGH);
+    } else if (i < 51) {
+      uint8_t digit = (i < 11) ? 2 : (i < 19) ? 1 : (i < 27) ? 0 : (i < 35) ? 5 : (i < 43) ? 4 : 3;
+      uint8_t segment = 1 << ((i - 3) % 8);
+      customSegments[digit] &= ~segment;
+      displayBAR.setSegments(customSegments);
+    } else if (i == 51) {
+      digitalWrite(LED51, HIGH);
+    } else if (i == 52) {
+      digitalWrite(LED52, HIGH);
+    } else if (i == 53) {
+      digitalWrite(LED53, HIGH);
+    }
+    delay(1); // Adjust the delay for animation speed
+  }
 }
 
 void loop(void) 
@@ -374,10 +412,12 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
 
     // first two LEDs are DIO not TM1637
     if (f == 1) {
-      analogWrite(LED01, (valueToDisplay > ledThreshold)? 250 : 255);
+      digitalWrite(LED01,(valueToDisplay > ledThreshold)? LOW : HIGH);
+      //analogWrite(LED01, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 2) {
-      analogWrite(LED02, (valueToDisplay > ledThreshold)? 250 : 255);
+      digitalWrite(LED02,(valueToDisplay > ledThreshold)? LOW : HIGH);
+      //analogWrite(LED02, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f < 51) {
       uint8_t digit;
@@ -414,13 +454,16 @@ if (serialDebugRefresh >= 250)        // So that is to say, is it time to print 
       }
     }
     else if (f == 51) {
-      analogWrite(LED52, (valueToDisplay > ledThreshold)? 250 : 255);
+      digitalWrite(LED52,(valueToDisplay > ledThreshold)? LOW : HIGH);
+      //analogWrite(LED52, (valueToDisplay > ledThreshold)? 250 : 255); // we uncomment these as we don't care anymore about PWMing these outputs
     }
     else if (f == 52) {
-      analogWrite(LED51, (valueToDisplay > ledThreshold)? 250 : 255);
+      digitalWrite(LED51,(valueToDisplay > ledThreshold)? LOW : HIGH);
+      //analogWrite(LED51, (valueToDisplay > ledThreshold)? 250 : 255);
     }
     else if (f == 53) {
-      analogWrite(LED53, (valueToDisplay > ledThreshold)? 250 : 255);
+      digitalWrite(LED53,(valueToDisplay > ledThreshold)? LOW : HIGH);
+      //analogWrite(LED53, (valueToDisplay > ledThreshold)? 250 : 255);
     }
   }
 
